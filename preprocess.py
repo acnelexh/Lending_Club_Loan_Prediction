@@ -25,3 +25,37 @@ def cleanup_df(df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame
     '''
     pass
+
+def encode_categorical(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
+    '''
+    Encode categorical data
+    args:
+        df: pd.DataFrame
+        column_names: list of column names
+    return:
+        pd.DataFrame
+    '''
+    pass
+
+def encode_numerical(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
+    '''
+    Encode numerical data
+    args:
+        df: pd.DataFrame
+        column_names: list of column names
+    return:
+        pd.Dataframe
+    '''
+    pass
+
+def encode_target(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    '''
+    Encode target data
+    args:
+        df: pd.DataFrame
+        column_name: column name of target
+    return:
+        pd.DataFrame
+    '''
+    pass
+
