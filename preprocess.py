@@ -16,15 +16,24 @@ def read_data(path: Path) -> pd.DataFrame:
     print(df.head())
     return df
 
-def cleanup_df(df: pd.DataFrame) -> pd.DataFrame:
+def cleanup_df(df: pd.DataFrame,
+               threshold_columns: float = 0.5,
+               threshold_rows: float = 0.0,
+               inplace: bool = True) -> pd.DataFrame:
     '''
     Clean up the dataframe NaN
     args:
         df: pd.DataFrame
+        threshold_columns: threshold for columns nan values
+        threshold_rows: threshold for rows nan values
     return:
         pd.DataFrame
     '''
-    pass
+    if not inplace:
+        df = df.copy()
+    df.dropna(axis=1, thresh=threshold_columns*len(df), inplace=True)
+    df.dropna(axis=0, thresh=threshold_rows*len(df), inplace=True)
+    return df
 
 def encode_categorical(df: pd.DataFrame, column_names: list) -> pd.DataFrame:
     '''
