@@ -31,6 +31,7 @@ def cleanup_df(df: pd.DataFrame,
     '''
     if not inplace:
         df = df.copy()
+    # drop columns and rows with nan values
     df.dropna(axis=1, thresh=threshold_columns*len(df), inplace=True)
     df.dropna(axis=0, thresh=threshold_rows*len(df), inplace=True)
     return df
