@@ -120,5 +120,8 @@ def encode_target(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
     return:
         pd.DataFrame
     '''
-    pass
+    encoder = preprocessing.LabelEncoder()
+    target_df = df[column_name]
+    target_df = encoder.fit_transform(target_df)
+    return target_df, encoder.classes_
 
