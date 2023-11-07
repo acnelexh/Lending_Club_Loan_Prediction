@@ -66,14 +66,15 @@ def encode_categorical_ordinal(df: pd.DataFrame, column_names: list, order: list
     return:
         pd.DataFrame
     '''
-    print(column_names)
-    ordinal_encoder = preprocessing.OrdinalEncoder(categories=order)
+    ordinal_encoder = preprocessing.OrdinalEncoder(categories=order, handle_unknown='use_encoded_value', unknown_value=-1)
     categorical_ordinal_df = df[column_names]
-    # replace nan with mode for each column
-    categorical_ordinal_df.fillna(categorical_ordinal_df.mode(), inplace=True)
-    # encode ordinal data
+    # encode categorical ordinal data
     categorical_ordinal_df = ordinal_encoder.fit_transform(categorical_ordinal_df)
-    return categorical_ordinal_df, ordinal_encoder.get_feature_names_out()
+    # replace -1 with mean for each column
+    for i in range(len(column_names)):
+        mean = categorical_ordinal_df[categorical_ordinal_df[:, i] != -1, i].mean()
+        categorical_ordinal_df[categorical_ordinal_df[:, i] == -1, i] = mean
+    return categorical_ordinal_df
 
 def encode_numerical(df: pd.DataFrame,
                      column_names: list,
