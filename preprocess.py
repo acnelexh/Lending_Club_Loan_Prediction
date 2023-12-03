@@ -2,9 +2,10 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from sklearn import preprocessing
+from sklearn import feature_extraction
 
 # list of exportable functions
-__all__ = ['read_data', 'cleanup_df', 'encode_numerical', 'encode_categorical_cardinal', 'merge_labels']
+__all__ = ['read_data', 'cleanup_df', 'encode_numerical', 'encode_categorical_cardinal', 'encode_categorical']
 
 def read_data(path: Path) -> pd.DataFrame:
     '''
@@ -38,16 +39,42 @@ def cleanup_df(df: pd.DataFrame,
     df.dropna(axis=0, thresh=threshold_rows*len(df), inplace=True)
     return df
 
-def encode_categorical(df: pd.DataFrame, column_names: list, handle_nan: str = 'mode') -> pd.DataFrame:
+def encode_categorical_hash(df: pd.DataFrame, column_names: list, n_features: int = 1024) -> pd.DataFrame:
+    '''
+    Hash categorical data
+    args:
+        df: pd.DataFrame
+        column_names: list of column names
+        n_features: number of features for hashing
+    return:
+        pd.DataFrame
+    '''
+    hasher = feature_extraction.FeatureHasher(n_features=n_features, input_type='dict')
+    categorical_df = df[column_names]
+    categorical_df.fillna(categorical_df.mode(), inplace=True)
+    categorical_df = categorical_df.to_dict('records')
+    categorical_df = hasher.transform(categorical_df)
+    return categorical_df
+
+def encode_categorical(
+        df: pd.DataFrame,
+        column_names: list,
+        handle_nan: str = 'mode',
+        hash: bool = False,
+        n_features: int = 1024) -> pd.DataFrame:
     '''
     Encode categorical data
     args:
         df: pd.DataFrame
         column_names: list of column names
         handle_nan: how to handle nan values
+        hash: whether to hash categorical data
+        n_features: number of features for hashing
     return:
-        pd.DataFrame
+        pd.DataFrame, list(str) or None if hash is True
     '''
+    if hash:
+        return encode_categorical_hash(df, column_names, n_features=n_features), None
     onehot_encoder = preprocessing.OneHotEncoder()
     categorical_df = df[column_names]
     # replace nan with mode for each column
