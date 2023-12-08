@@ -151,9 +151,9 @@ class LendingClubDataset(Dataset):
     def __getitem__(self, idx):
         return self.features[idx], self.labels[idx]
 
-def get_dataloader(features, labels, batch_size):
+def get_dataloader(features, labels, batch_size, n_workers=5):
     dataset = LendingClubDataset(features, labels)
-    return DataLoader(dataset, batch_size=batch_size)
+    return DataLoader(dataset, batch_size=batch_size, num_workers=n_workers)
 
 def hyperparameter_tuning(model_fn: torch.nn.Module,
                           model_params: dict,
@@ -162,7 +162,8 @@ def hyperparameter_tuning(model_fn: torch.nn.Module,
                           random_search_itr=100,
                           max_epochs=10,
                           metric='f1',
-                          log_dir=None):
+                          log_dir=None,
+                          n_workers=5):
     # lr, weight_decay, batch_size, hidden_size
     result = {}
     for i in range(random_search_itr):
@@ -172,7 +173,7 @@ def hyperparameter_tuning(model_fn: torch.nn.Module,
         weight_decay = 10 ** (-5 * torch.rand(1)).item()
         batch_size = (2 ** torch.randint(4, 7, (1,))).item() # 16 - 128
         model = model_fn(**model_params, lr=lr, weight_decay=weight_decay)
-        val_loader = get_dataloader(val_X, val_y, batch_size)
+        val_loader = get_dataloader(val_X, val_y, batch_size, n_workers=n_workers)
         # train and evalute on validation set
         trainer.fit(model, val_loader)
         if metric == 'f1':
@@ -200,12 +201,14 @@ def pipeline(model_fn: torch.nn.Module,
              validation_split: float = 0.2,
              random_search_itr: int = 100,
              hyperparam_metric: str = 'f1',
-             hyperparam_epoch: int = 10):
+             hyperparam_epoch: int = 10,
+             log_dir: str = None,
+             n_workers: int = 5):
     # split dataset and setup loader
     train_X, val_X, train_y, val_y = train_test_split(
         train_X, train_y, test_size=validation_split, stratify=train_y)
     # hyperparameter tuning
-    log_dir = f"lightning_logs/{time.time()}"
+    log_dir = log_dir if log_dir else f"logs/{time.time()}"
     hyperparam = hyperparameter_tuning(model_fn,
                                        model_params,
                                        val_X,
@@ -213,11 +216,12 @@ def pipeline(model_fn: torch.nn.Module,
                                        random_search_itr,
                                        hyperparam_epoch,
                                        hyperparam_metric,
-                                       log_dir=log_dir)
+                                       log_dir=log_dir,
+                                       n_workers=n_workers)
     # setup dataloader
-    train_loader = get_dataloader(train_X, train_y, hyperparam['batch_size'])
-    val_loader = get_dataloader(val_X, val_y, hyperparam['batch_size'])
-    test_loader = get_dataloader(test_X, test_y, hyperparam['batch_size'])
+    train_loader = get_dataloader(train_X, train_y, hyperparam['batch_size'], n_workers=n_workers)
+    val_loader = get_dataloader(val_X, val_y, hyperparam['batch_size'], n_workers=n_workers)
+    test_loader = get_dataloader(test_X, test_y, hyperparam['batch_size'], n_workers=n_workers)
     # set up trainer
     trainer = L.Trainer(max_epochs=n_epochs, devices=device, default_root_dir=log_dir)
     model = model_fn(**model_params, **hyperparam)
@@ -263,7 +267,9 @@ def unit_test_models():
         validation_split=0.2,
         random_search_itr=10,
         hyperparam_metric='f1',
-        hyperparam_epoch=5)
+        hyperparam_epoch=5,
+        n_workers=4,
+        log_dir='tmp')
 
 if __name__ == "__main__":
     #unit_test_pipeline()
