@@ -36,7 +36,7 @@ class LinearModel(L.LightningModule):
         y_hat = self.model(x)
         loss = torch.nn.functional.cross_entropy(y_hat, y)
         self.log("train_loss", loss)
-        self.log("train_acc", accuracy(y_hat, y, task="multiclass", num_classes=2))
+        self.log("train_acc", accuracy(y_hat, y, task="multiclass", num_classes=2, average="macro"))
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -45,10 +45,10 @@ class LinearModel(L.LightningModule):
         y_hat = self.model(x)
         loss = torch.nn.functional.cross_entropy(y_hat, y)
         self.log("validation_loss", loss)
-        self.log("validation_acc", accuracy(y_hat, y, task="multiclass", num_classes=2))
-        self.log("validation_f1", f1(y_hat, y, task="multiclass", num_classes=2))
-        self.log("validation_precision", precision(y_hat, y, task="multiclass", num_classes=2))
-        self.log("validation_recall", recall(y_hat, y, task="multiclass", num_classes=2))
+        self.log("validation_acc", accuracy(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("validation_f1", f1(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("validation_precision", precision(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("validation_recall", recall(y_hat, y, task="multiclass", num_classes=2, average="macro"))
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -56,10 +56,10 @@ class LinearModel(L.LightningModule):
         y_hat = self.model(x)
         loss = torch.nn.functional.cross_entropy(y_hat, y)
         self.log("test_loss", loss)
-        self.log("test_acc", accuracy(y_hat, y, task="multiclass", num_classes=2))
-        self.log("test_f1", f1(y_hat, y, task="multiclass", num_classes=2))
-        self.log("test_precision", precision(y_hat, y, task="multiclass", num_classes=2))
-        self.log("test_recall", recall(y_hat, y, task="multiclass", num_classes=2))
+        self.log("test_acc", accuracy(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("test_f1", f1(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("test_precision", precision(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("test_recall", recall(y_hat, y, task="multiclass", num_classes=2, average="macro"))
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         return self(batch)
@@ -161,7 +161,21 @@ def unit_test_pipeline():
     y_train = torch.randint(0, 2, (100,))
     X_test = torch.randn(100, 10)
     y_test = torch.randint(0, 2, (100,))
-    pipeline(LinearModel, 10, 2, [32,32], X_train, y_train, X_test, y_test)
+    pipeline(LinearModel,
+         input_size=X_train.shape[1],
+         n_classes=2,
+         hidden_size=[128,128],
+         train_X=X_train,
+         train_y=y_train,
+         test_X=X_test,
+         test_y= y_test,
+         n_epochs=5,
+         device='auto',
+         validation_split=0.2,
+         random_search_itr=10,
+         hyperparam_metric='f1',
+         hyperparam_epoch=10
+         )
 
 if __name__ == "__main__":
     #unit_test_pipeline()
