@@ -1,4 +1,5 @@
 import torch
+import time
 from torch.utils.data import Dataset
 import lightning as L
 from torchmetrics.functional import accuracy, precision, recall, f1_score as f1
@@ -12,7 +13,8 @@ class LinearModel(L.LightningModule):
                  n_classes: int,
                  hidden_size: list,
                  lr: float,
-                 weight_decay: float, **kwargs):
+                 weight_decay: float,
+                 **kwargs):
         super().__init__()
         # params validation
         self.lr = lr
@@ -75,15 +77,18 @@ class LinearModelBatchNorm(LinearModel):
                  n_classes: int,
                  hidden_size: list,
                  lr: float,
-                 weight_decay: float, **kwargs):
+                 weight_decay: float,
+                 **kwargs):
         super().__init__(input_size, n_classes, hidden_size, lr, weight_decay)
         # add batch normalization and replace linear layers
         layers = []
         for i in range(len(hidden_size)):
             if i == 0:
-                layers.append(torch.nn.Sequential(Linear(input_size, hidden_size[i]), torch.nn.BatchNorm1d(hidden_size[i])))
+                layers.append(torch.nn.Sequential(Linear(input_size, hidden_size[i]),
+                                                  torch.nn.BatchNorm1d(hidden_size[i])))
             else:
-                layers.append(torch.nn.Sequential(Linear(hidden_size[i-1], hidden_size[i]), torch.nn.BatchNorm1d(hidden_size[i])))
+                layers.append(torch.nn.Sequential(Linear(hidden_size[i-1], hidden_size[i]),
+                                                  torch.nn.BatchNorm1d(hidden_size[i])))
         layers.append(Linear(hidden_size[-1], n_classes))
         self.model = torch.nn.Sequential(*layers)
 
@@ -93,16 +98,20 @@ class LinearModelDropout(LinearModel):
                  input_size: int,
                  n_classes: int,
                  hidden_size: list,
+                 drop_out: float,
                  lr: float,
-                 weight_decay: float, **kwargs):
+                 weight_decay: float,
+                 **kwargs):
         super().__init__(input_size, n_classes, hidden_size, lr, weight_decay)
         # add batch normalization and replace linear layers
         layers = []
         for i in range(len(hidden_size)):
             if i == 0:
-                layers.append(torch.nn.Sequential(Linear(input_size, hidden_size[i]), torch.nn.Dropout(0.2)))
+                layers.append(torch.nn.Sequential(Linear(input_size, hidden_size[i]),
+                                                  torch.nn.Dropout(drop_out)))
             else:
-                layers.append(torch.nn.Sequential(Linear(hidden_size[i-1], hidden_size[i]), torch.nn.Dropout(0.2)))
+                layers.append(torch.nn.Sequential(Linear(hidden_size[i-1], hidden_size[i]),
+                                                  torch.nn.Dropout(drop_out)))
         layers.append(Linear(hidden_size[-1], n_classes))
         self.model = torch.nn.Sequential(*layers)
 
@@ -114,7 +123,8 @@ class LinearModelBatchNormDropout(LinearModel):
                  hidden_size: list,
                  drop_out: float,
                  lr: float,
-                 weight_decay: float, **kwargs):
+                 weight_decay: float,
+                 **kwargs):
         super().__init__(input_size, n_classes, hidden_size, lr, weight_decay)
         # add batch normalization and replace linear layers
         layers = []
@@ -151,11 +161,12 @@ def hyperparameter_tuning(model_fn: torch.nn.Module,
                           val_y: torch.tensor,
                           random_search_itr=100,
                           max_epochs=10,
-                          metric='f1'):
+                          metric='f1',
+                          log_dir=None):
     # lr, weight_decay, batch_size, hidden_size
     result = {}
     for i in range(random_search_itr):
-        trainer = L.Trainer(max_epochs=max_epochs, devices='auto', )
+        trainer = L.Trainer(max_epochs=max_epochs, devices='auto', default_root_dir=log_dir)
         # create model
         lr = 10 ** (-5 * torch.rand(1)).item()
         weight_decay = 10 ** (-5 * torch.rand(1)).item()
@@ -194,19 +205,21 @@ def pipeline(model_fn: torch.nn.Module,
     train_X, val_X, train_y, val_y = train_test_split(
         train_X, train_y, test_size=validation_split, stratify=train_y)
     # hyperparameter tuning
+    log_dir = f"lightning_logs/{time.time()}"
     hyperparam = hyperparameter_tuning(model_fn,
                                        model_params,
                                        val_X,
                                        val_y,
                                        random_search_itr,
                                        hyperparam_epoch,
-                                       hyperparam_metric)
+                                       hyperparam_metric,
+                                       log_dir=log_dir)
     # setup dataloader
     train_loader = get_dataloader(train_X, train_y, hyperparam['batch_size'])
     val_loader = get_dataloader(val_X, val_y, hyperparam['batch_size'])
     test_loader = get_dataloader(test_X, test_y, hyperparam['batch_size'])
     # set up trainer
-    trainer = L.Trainer(max_epochs=n_epochs, devices=device)
+    trainer = L.Trainer(max_epochs=n_epochs, devices=device, default_root_dir=log_dir)
     model = model_fn(**model_params, **hyperparam)
     trainer.fit(model, train_loader, val_dataloaders=val_loader)
     # train
@@ -233,10 +246,10 @@ def unit_test_pipeline():
         hyperparam_epoch=10)
 
 def unit_test_models():
-    X_train = torch.randn(100, 10)
-    y_train = torch.randint(0, 2, (100,))
-    X_test = torch.randn(100, 10)
-    y_test = torch.randint(0, 2, (100,))
+    X_train = torch.randn(1000, 10)
+    y_train = torch.randint(0, 2, (1000,))
+    X_test = torch.randn(1000, 10)
+    y_test = torch.randint(0, 2, (1000,))
     model_params = {"input_size": X_train.shape[1], "n_classes": 2,"hidden_size": [128, 128], 'drop_out': 0.2}
     pipeline(
         LinearModelBatchNormDropout,
@@ -250,8 +263,7 @@ def unit_test_models():
         validation_split=0.2,
         random_search_itr=10,
         hyperparam_metric='f1',
-        hyperparam_epoch=10)
-
+        hyperparam_epoch=5)
 
 if __name__ == "__main__":
     #unit_test_pipeline()
