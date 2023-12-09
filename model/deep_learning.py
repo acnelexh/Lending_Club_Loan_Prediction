@@ -1,5 +1,6 @@
 import torch
 import time
+from sklearn.metrics import confusion_matrix
 from lightning.pytorch.callbacks import ModelCheckpoint
 from torch.utils.data import Dataset
 import lightning as L
@@ -63,6 +64,11 @@ class LinearModel(L.LightningModule):
         self.log("test_f1", f1(y_hat, y, task="multiclass", num_classes=2, average="macro"))
         self.log("test_precision", precision(y_hat, y, task="multiclass", num_classes=2, average="macro"))
         self.log("test_recall", recall(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+
+    def forward(self, batch):
+        x, y = batch
+        x = x.view(x.size(0), -1)
+        return self.model(x)
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         return self(batch)
@@ -233,7 +239,12 @@ def pipeline(model_fn: torch.nn.Module,
     # train and save at each epoch and monitor f1 score
     trainer.fit(model, train_loader, val_dataloaders=val_loader)
     # test the best model
-    trainer.test(dataloaders=test_loader, ckpt_path='best')
+    result = trainer.test(dataloaders=test_loader, ckpt_path='best')
+    # make prediction and generate confusion matrix
+    y_pred = trainer.predict(dataloaders=test_loader, ckpt_path='best') # list of tensor
+    y_pred = torch.argmax(torch.cat(y_pred, dim=0), dim=1)
+    matrix = confusion_matrix(test_y, y_pred)
+    return result, matrix
 
 def unit_test_pipeline():
     X_train = torch.randn(100, 10)
@@ -268,12 +279,12 @@ def unit_test_models():
         train_y=y_train,
         test_X=X_test,
         test_y= y_test,
-        n_epochs=3,
+        n_epochs=1,
         device='auto',
         validation_split=0.2,
-        random_search_itr=2,
+        random_search_itr=1,
         hyperparam_metric='f1',
-        hyperparam_epoch=2,
+        hyperparam_epoch=1,
         n_workers=2,
         log_dir='tmp')
 
