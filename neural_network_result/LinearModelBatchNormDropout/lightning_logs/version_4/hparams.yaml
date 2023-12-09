@@ -1,0 +1,8 @@
+drop_out: 0.2
+hidden_size:
+- 256
+- 256
+input_size: 679
+lr: 0.03552333605682631
+n_classes: 2
+weight_decay: 0.00042882383775824683

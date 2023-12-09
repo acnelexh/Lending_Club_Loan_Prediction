@@ -1,0 +1,9 @@
+batch_size: 32
+drop_out: 0.2
+hidden_size:
+- 256
+- 256
+input_size: 679
+lr: 0.0005693448351660546
+n_classes: 2
+weight_decay: 1.19724013375385e-05

@@ -1,0 +1,7 @@
+hidden_size:
+- 256
+- 256
+input_size: 679
+lr: 0.7224427732054816
+n_classes: 2
+weight_decay: 0.1639583507103194
