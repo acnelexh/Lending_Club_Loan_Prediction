@@ -4,7 +4,7 @@ from sklearn.metrics import confusion_matrix
 from lightning.pytorch.callbacks import ModelCheckpoint
 from torch.utils.data import Dataset
 import lightning as L
-from torchmetrics.functional import accuracy, precision, recall, f1_score as f1
+from torchmetrics.functional import accuracy, precision, recall, f1_score as f1, average_precision, auroc
 from torch.nn import Linear
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
@@ -21,6 +21,7 @@ class LinearModel(L.LightningModule):
         # params validation
         self.lr = lr
         self.weight_decay = weight_decay
+        self.n_classes = n_classes
 
         self.save_hyperparameters()
 
@@ -40,7 +41,7 @@ class LinearModel(L.LightningModule):
         y_hat = self.model(x)
         loss = torch.nn.functional.cross_entropy(y_hat, y)
         self.log("train_loss", loss)
-        self.log("train_acc", accuracy(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("train_acc", accuracy(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -49,10 +50,11 @@ class LinearModel(L.LightningModule):
         y_hat = self.model(x)
         loss = torch.nn.functional.cross_entropy(y_hat, y)
         self.log("validation_loss", loss)
-        self.log("validation_acc", accuracy(y_hat, y, task="multiclass", num_classes=2, average="macro"))
-        self.log("validation_f1", f1(y_hat, y, task="multiclass", num_classes=2, average="macro"))
-        self.log("validation_precision", precision(y_hat, y, task="multiclass", num_classes=2, average="macro"))
-        self.log("validation_recall", recall(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("validation_acc", accuracy(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("validation_f1", f1(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("validation_precision", precision(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("validation_recall", recall(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("validation_ap", average_precision(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -60,10 +62,12 @@ class LinearModel(L.LightningModule):
         y_hat = self.model(x)
         loss = torch.nn.functional.cross_entropy(y_hat, y)
         self.log("test_loss", loss)
-        self.log("test_acc", accuracy(y_hat, y, task="multiclass", num_classes=2, average="macro"))
-        self.log("test_f1", f1(y_hat, y, task="multiclass", num_classes=2, average="macro"))
-        self.log("test_precision", precision(y_hat, y, task="multiclass", num_classes=2, average="macro"))
-        self.log("test_recall", recall(y_hat, y, task="multiclass", num_classes=2, average="macro"))
+        self.log("test_acc", accuracy(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("test_f1", f1(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("test_precision", precision(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("test_recall", recall(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("test_ap", average_precision(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
+        self.log("test_auroc", auroc(y_hat, y, task="multiclass", num_classes=self.n_classes, average="macro"))
 
     def forward(self, batch):
         x, y = batch
